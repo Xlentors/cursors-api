@@ -1,6 +1,9 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from typing import Annotated
+
+from fastapi import FastAPI, HTTPException, Query
 from google.cloud import firestore
+from google.cloud.firestore_v1.base_query import FieldFilter
+from pydantic import BaseModel
 
 PROJECT_ID = "cursors-925b4"
 
@@ -20,8 +23,17 @@ def read_root():
 
 
 @api.get("/cursors", response_model=list[Cursor])
-def read_cursors():
-    cursor_snapshots = db.collection("cursors").limit(10).stream()
+def read_cursors(
+    limit: Annotated[int, Query(ge=1, le=50)] = 10,
+    cursor_type: str | None = None,
+):
+
+    cursor_query = db.collection("cursors")
+
+    if cursor_type is not None:
+        cursor_query = cursor_query.where(filter=FieldFilter("type", "==", cursor_type))
+
+    cursor_snapshots = cursor_query.limit(limit).stream()
     cursor_list = []
     
     for cursor_snapshot in cursor_snapshots:
