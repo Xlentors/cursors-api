@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import FastAPI, HTTPException, Query
 from google.cloud import firestore
@@ -32,13 +32,34 @@ def read_root():
 def read_cursors(
     limit: Annotated[int, Query(ge=1, le=50)] = 10,
     cursor_type: str | None = None,
+    cursor_author: str | None = None,
+    sort_by: Literal["id", "name", "author"] = "id",
+    sort_order: Literal["asc", "desc"] = "asc",
     after_id: str | None = None,
 ):
-    cursor_query = db.collection("cursors").order_by(FieldPath.document_id())
+    if sort_by == "id":
+        sort_field = FieldPath.document_id()
+    else:
+        sort_field = sort_by
+
+    if sort_order == "asc":
+        direction = firestore.Query.ASCENDING
+    else:
+        direction = firestore.Query.DESCENDING
+
+    cursor_query = db.collection("cursors").order_by(
+        sort_field,
+        direction=direction
+    )
 
     if cursor_type is not None:
         cursor_query = cursor_query.where(
             filter=FieldFilter("type", "==", cursor_type)
+        )
+
+    if cursor_author is not None:
+        cursor_query = cursor_query.where(
+            filter=FieldFilter("author", "==", cursor_author)
         )
 
     if after_id is not None:
